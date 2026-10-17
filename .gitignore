@@ -1,0 +1,53 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+*.log
+
+# ---------- Secrets / local config ----------
+.env
+.env.*
+
+# ---------- Editors / OS ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Large inputs and intermediate rasters (re-created by run_pipeline.py) ----------
+data/raw/
+data/processed/
+
+# ---------- Trained model weights (re-created by 03_train_cnn.py) ----------
+models/
+*.keras
+*.h5
+*.pt
+*.npz
+
+# ---------- Pipeline outputs: keep small figures + farm results, ignore heavy GIS files ----------
+outputs/*
+!outputs/*.png
+!outputs/farm_results.csv
+!outputs/farm_results.geojson
+!outputs/test_metrics.txt
+
+# ---------- Heavy GIS / raster formats anywhere ----------
+*.tif
+*.tiff
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.cpg
+*.prj
+
+# NOTE: web/ (including web/data/) is intentionally NOT ignored.
+# It holds the static dashboard that gets deployed.
+# data/farms.geojson (your farm polygons) is also tracked.

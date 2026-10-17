@@ -1,0 +1,15 @@
+numpy
+pandas
+matplotlib
+rasterio
+geopandas
+shapely
+pyproj
+scikit-learn
+torch
+torchvision
+streamlit
+folium
+streamlit-folium
+osmnx>=2.0   # optional, only for 07_download_osm.py
+tensorflow

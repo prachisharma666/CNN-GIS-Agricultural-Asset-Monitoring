@@ -1,0 +1,21 @@
+farm_id,crop_type,claimed_area_ha,polygon_area_ha,cropland_area_ha,cropland_pct_of_polygon,area_consistency_pct,ndvi_d1,ndvi_d2,ndvi_change,valid_cov_d1,valid_cov_d2,dist_road_km,dist_river_km,status,flags
+F001,Grapes,6.18,6.18,6.25,101.2,101.1,0.372,0.47,0.097,100.0,100.0,0.17,2.11,OK,None
+F002,Sugarcane,3.17,1.98,2.25,113.5,71.0,0.268,0.369,0.101,100.0,100.0,0.26,2.56,OK,None
+F003,Onion,1.58,1.58,1.3,82.3,82.3,0.395,0.494,0.099,100.0,100.0,1.19,1.77,OK,None
+F004,Wheat,5.59,3.49,3.61,103.3,64.6,0.313,0.25,-0.063,100.0,100.0,0.54,0.9,REVIEW,Estimated cropland is only 65% of claimed area
+F005,Sugarcane,6.3,5.72,5.29,92.4,84.0,0.42,0.432,0.012,100.0,100.0,0.09,0.82,OK,None
+F006,Wheat,3.49,3.49,3.43,98.3,98.3,0.292,0.477,0.186,100.0,100.0,0.95,0.06,OK,None
+F007,Onion,3.71,2.32,1.85,79.9,49.9,0.36,0.526,0.166,100.0,100.0,0.18,1.15,REVIEW,Estimated cropland is only 50% of claimed area
+F008,Sugarcane,3.36,2.1,2.25,107.0,67.0,0.318,0.443,0.125,100.0,100.0,0.06,1.37,REVIEW,Estimated cropland is only 67% of claimed area
+F009,Grapes,2.35,2.13,2.25,105.4,95.7,0.333,0.446,0.113,100.0,100.0,0.26,0.45,OK,None
+F010,Tomato,1.31,1.45,1.69,116.4,129.0,0.379,0.563,0.184,100.0,100.0,0.66,2.11,OK,None
+F011,Grapes,1.77,1.96,2.25,114.7,127.1,0.44,0.35,-0.09,100.0,100.0,0.11,0.46,OK,None
+F012,Wheat,5.5,5.5,5.29,96.2,96.2,0.344,0.335,-0.009,100.0,100.0,0.79,0.1,OK,None
+F013,Sugarcane,5.83,5.3,5.29,99.9,90.7,0.307,0.376,0.069,100.0,100.0,1.61,0.65,OK,None
+F014,Onion,4.68,4.68,4.41,94.1,94.2,0.348,0.417,0.069,100.0,100.0,0.38,0.75,OK,None
+F015,Wheat,3.99,3.62,0.56,15.5,14.0,0.277,0.216,-0.061,100.0,100.0,0.1,0.26,REVIEW,Estimated cropland is only 14% of claimed area
+F016,Grapes,5.99,5.44,0.0,0.0,0.0,0.271,0.304,0.033,100.0,100.0,0.07,0.97,REVIEW,Estimated cropland is only 0% of claimed area
+F017,Onion,3.91,3.91,0.78,19.9,19.9,0.234,0.199,-0.035,100.0,100.0,0.09,1.03,REVIEW,Estimated cropland is only 20% of claimed area
+F018,Grapes,2.61,2.9,0.4,13.8,15.3,0.375,0.603,0.229,100.0,100.0,0.81,0.06,REVIEW,Estimated cropland is only 15% of claimed area
+F019,Tomato,1.95,1.95,0.0,0.0,0.0,0.239,0.292,0.054,100.0,100.0,0.28,0.89,REVIEW,Estimated cropland is only 0% of claimed area
+F020,Tomato,2.58,2.87,0.0,0.0,0.0,0.222,0.227,0.005,100.0,100.0,0.09,0.67,REVIEW,Estimated cropland is only 0% of claimed area
