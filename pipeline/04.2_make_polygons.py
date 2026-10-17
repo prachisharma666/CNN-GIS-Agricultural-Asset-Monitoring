@@ -12,7 +12,7 @@ import rasterio
 from rasterio import features
 import geopandas as gpd
 from shapely.geometry import shape
-from config import *
+from pipeline.config import *
 
 MODE = sys.argv[1] if len(sys.argv) > 1 else "cnn"
 MIN_AREA_M2 = 5000        # drop polygons smaller than 0.5 ha (50 pixels at 10 m)

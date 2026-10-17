@@ -1,143 +1,156 @@
-"""Step 9: Streamlit dashboard.   Run:  streamlit run app.py"""
+"""Claim checker: draw a farm on the map, enter the claimed area, get a satellite-evidence verdict.
+Run: streamlit run app.py
+Needs the outputs of steps 01 (stacks), 04 (crop_pred.tif) and 05 (NDVI)."""
 import numpy as np
-import pandas as pd
-import geopandas as gpd
 import rasterio
 import streamlit as st
 import folium
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from folium.plugins import Draw
+from rasterio import features
+from pyproj import Transformer
+from shapely.geometry import shape
+from shapely.ops import transform as shp_transform
 from streamlit_folium import st_folium
-from config import *
+from pipeline.config import *
 
-st.set_page_config(page_title="Nashik Farm Monitoring (Prototype)", layout="wide")
-st.title("CNN-GIS Agricultural Asset Verification & Risk Monitoring - Nashik, Maharashtra")
-st.caption("Academic research prototype. Flags support human review only; they are not proof of "
-           "misreporting, crop damage, or a lending/insurance decision.")
+st.set_page_config(page_title="Claim Checker", layout="wide")
+st.title("Agricultural claim checker – Nashik study area")
+st.caption("Does the satellite evidence support the claimed farm area? Research prototype: a decision-support "
+           "aid for human reviewers, not proof of fraud, crop failure or loan eligibility.")
 
-RESULTS = OUT / "farm_results.geojson"
-if not RESULTS.exists():
-    st.error("Run 08_farm_analysis.py first.")
+need = [PRED_PATH, stack_path(DATE1), ndvi_path(DATE1), ndvi_path(DATE2)]
+if not all(p.exists() for p in need):
+    st.error("Processed rasters are missing. Run steps 01, 04 and 05 first.")
     st.stop()
 
 
 @st.cache_data
-def load_results():
-    return gpd.read_file(RESULTS)
-
-
-@st.cache_data
-def load_raster(path):
+def load(path):
     with rasterio.open(path) as src:
         return src.read(), src.transform
 
 
-def crop(arr, transform, bounds, pad=150):
-    """Cut arr (..., H, W) around bounds (UTM metres) + pad; return subarray and plot extent."""
+def crop(arr, tr, bounds, pad=150):
     minx, miny, maxx, maxy = bounds
-    c0, r1 = ~transform * (minx - pad, miny - pad)
-    c1, r0 = ~transform * (maxx + pad, maxy + pad)
+    c0, r1 = ~tr * (minx - pad, miny - pad)
+    c1, r0 = ~tr * (maxx + pad, maxy + pad)
     H, W = arr.shape[-2:]
     r0, r1 = max(int(np.floor(r0)), 0), min(int(np.ceil(r1)), H)
     c0, c1 = max(int(np.floor(c0)), 0), min(int(np.ceil(c1)), W)
     sub = arr[..., r0:r1, c0:c1]
-    left, top = transform.c + c0 * transform.a, transform.f + r0 * transform.e
-    extent = (left, left + sub.shape[-1] * transform.a, top + sub.shape[-2] * transform.e, top)
-    return sub, extent
+    left, top = tr.c + c0 * tr.a, tr.f + r0 * tr.e
+    return sub, (left, left + sub.shape[-1] * tr.a, top + sub.shape[-2] * tr.e, top)
 
 
-def panel(img, extent, geom, title, cmap=None, vmin=None, vmax=None):
+def panel(img, ext, geom, title, **kw):
     fig, ax = plt.subplots(figsize=(4, 4))
-    ax.imshow(img, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
+    ax.imshow(img, extent=ext, interpolation="nearest", **kw)
     for p in (geom.geoms if geom.geom_type == "MultiPolygon" else [geom]):
         x, y = p.exterior.xy
         ax.plot(x, y, color="red", lw=2)
-    ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
-    ax.set_title(title, fontsize=10); ax.set_xticks([]); ax.set_yticks([])
+    ax.set_xlim(ext[0], ext[1]); ax.set_ylim(ext[2], ext[3]); ax.set_title(title, fontsize=10)
+    ax.set_xticks([]); ax.set_yticks([])
     return fig
 
 
-def fmt(v, nd=2):
-    return "n/a" if v is None or pd.isna(v) else f"{v:.{nd}f}"
+pred = load(str(PRED_PATH))[0][0]
+tr = load(str(PRED_PATH))[1]
+stack = load(str(stack_path(DATE1)))[0]
+n1 = np.where(load(str(ndvi_path(DATE1)))[0][0] == -9999, np.nan, load(str(ndvi_path(DATE1)))[0][0])
+n2 = np.where(load(str(ndvi_path(DATE2)))[0][0] == -9999, np.nan, load(str(ndvi_path(DATE2)))[0][0])
 
+# ---------------- inputs ----------------
+with st.sidebar:
+    st.header("1. Enter the claim")
+    claimed = st.number_input("Claimed cultivated area (ha)", min_value=0.1, value=2.0, step=0.1)
+    crop_type = st.text_input("Crop (optional)", "Onion")
+    st.header("2. Draw the farm")
+    st.write("Use the polygon or rectangle tool on the map (left toolbar) to outline the farm "
+             "inside the yellow study-area box.")
 
-gdf = load_results()
-farm_id = st.sidebar.selectbox("Select farm", gdf["farm_id"].tolist())
-row = gdf[gdf["farm_id"] == farm_id].iloc[0]
-geom_utm = gpd.GeoSeries([row.geometry], crs="EPSG:4326").to_crs(CRS).iloc[0]
+W_, S_, E_, N_ = BBOX
+m = folium.Map(location=[(S_ + N_) / 2, (W_ + E_) / 2], zoom_start=13, tiles=None)
+folium.TileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                 attr="Esri World Imagery", name="Satellite").add_to(m)
+folium.Rectangle([[S_, W_], [N_, E_]], color="yellow", fill=False, weight=2).add_to(m)
+Draw(export=False, draw_options={"polygon": True, "rectangle": True, "polyline": False, "circle": False,
+                                 "marker": False, "circlemarker": False}).add_to(m)
+out = st_folium(m, height=480, width=900, key="map")
 
-st.subheader(f"Farm {row.farm_id}  -  crop (demo record): {row.crop_type}")
-(st.warning if row.status == "REVIEW" else st.success)(f"Status: {row.status}   |   Flags: {row.flags}")
+drawing = out.get("last_active_drawing") or (out.get("all_drawings") or [None])[-1]
+if not drawing:
+    st.info("Draw a farm boundary on the map to see the verdict.")
+    st.stop()
+
+# ---------------- analysis ----------------
+to_utm = Transformer.from_crs("EPSG:4326", CRS, always_xy=True).transform
+geom = shp_transform(to_utm, shape(drawing["geometry"]))
+if not geom.is_valid:
+    geom = geom.buffer(0)
+mask = features.geometry_mask([geom], out_shape=pred.shape, transform=tr, invert=True)
+n_pix = int(mask.sum())
+if n_pix < 30:
+    st.error("The drawn area is outside the study area or smaller than about 0.3 ha. Draw a larger farm inside the yellow box.")
+    st.stop()
+
+poly_ha = geom.area / 1e4
+cov = float((mask & (pred != 255)).sum()) / n_pix
+crop_ha = float((mask & (pred == 1)).sum()) * RES * RES / 1e4
+ratio = crop_ha / claimed * 100
+v1, v2 = n1[mask], n2[mask]
+v1, v2 = v1[~np.isnan(v1)], v2[~np.isnan(v2)]
+m1 = float(v1.mean()) if len(v1) else np.nan
+m2 = float(v2.mean()) if len(v2) else np.nan
+chg = m2 - m1
+
+if cov < 0.5:
+    level, head = "grey", "CANNOT VERIFY – too few cloud-free satellite pixels over this farm"
+elif 70 <= ratio <= 130:
+    level, head = "green", "CLAIM SUPPORTED – satellite-estimated cropland is consistent with the claimed area"
+elif 40 <= ratio < 70 or ratio > 130:
+    level, head = "amber", "PARTIALLY SUPPORTED – claimed and estimated areas differ; human review suggested"
+else:
+    level, head = "red", "NOT SUPPORTED – little cropland detected for the claimed area; human review recommended"
+{"green": st.success, "amber": st.warning, "red": st.error, "grey": st.info}[level](head)
 
 c = st.columns(4)
-c[0].metric("Claimed area (ha)", fmt(row.claimed_area_ha))
-c[1].metric("Polygon area (ha)", fmt(row.polygon_area_ha))
-c[2].metric("Estimated cropland (ha)", fmt(row.cropland_area_ha))
-c[3].metric("Area consistency (%)", fmt(row.area_consistency_pct, 1))
-c = st.columns(4)
-c[0].metric(f"Mean NDVI {DATE1}", fmt(row.ndvi_d1, 3))
-c[1].metric(f"Mean NDVI {DATE2}", fmt(row.ndvi_d2, 3))
-c[2].metric("NDVI change", fmt(row.ndvi_change, 3))
-c[3].metric("Cloud-free pixels (d1 / d2 %)", f"{fmt(row.valid_cov_d1, 0)} / {fmt(row.valid_cov_d2, 0)}")
-c = st.columns(2)
-c[0].metric("Distance to nearest mapped road (km)", fmt(row.dist_road_km))
-c[1].metric("Distance to nearest mapped river/stream (km)", fmt(row.dist_river_km))
+c[0].metric("Claimed area (ha)", f"{claimed:.2f}")
+c[1].metric("Drawn boundary (ha)", f"{poly_ha:.2f}")
+c[2].metric("Satellite-estimated cropland (ha)", f"{crop_ha:.2f}")
+c[3].metric("Area consistency", f"{ratio:.0f}%")
+c = st.columns(3)
+c[0].metric(f"Mean NDVI {DATE1}", "n/a" if np.isnan(m1) else f"{m1:.2f}")
+c[1].metric(f"Mean NDVI {DATE2}", "n/a" if np.isnan(m2) else f"{m2:.2f}")
+c[2].metric("Cloud-free pixels", f"{cov*100:.0f}%")
 
-# ---- Interactive map
-st.markdown("#### Farm boundary")
-ctr = row.geometry.centroid
-m = folium.Map(location=[ctr.y, ctr.x], zoom_start=16, tiles=None)
-folium.TileLayer(
-    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attr="Esri World Imagery", name="Satellite").add_to(m)
-for _, r in gdf.iterrows():
-    sel = r.farm_id == farm_id
-    colour = "red" if r.status == "REVIEW" else "lime"
-    folium.GeoJson(r.geometry.__geo_interface__, tooltip=r.farm_id,
-                   style_function=lambda _, col=colour, w=(4 if sel else 1): {
-                       "color": col, "weight": w, "fillOpacity": 0.1}).add_to(m)
-st_folium(m, height=420, width=900)
+notes = []
+if abs(poly_ha - claimed) / claimed > 0.3:
+    notes.append(f"The boundary you drew ({poly_ha:.2f} ha) differs from the claimed area by more than 30%.")
+if not np.isnan(m1) and m1 < 0.2:
+    notes.append("Very little vegetation was visible on the first date; the land may be fallow, bare or not cultivated.")
+if not np.isnan(chg) and chg <= -0.2:
+    notes.append(f"NDVI fell by {abs(chg):.2f} between the dates. This can reflect harvest or season, not only crop damage.")
+for n in notes:
+    st.write("• " + n)
 
-# ---- Raster panels
-stack, tr = load_raster(str(stack_path(DATE1)))
-pred, _ = load_raster(str(PRED_PATH))
-n1, _ = load_raster(str(ndvi_path(DATE1)))
-n2, _ = load_raster(str(ndvi_path(DATE2)))
-b = geom_utm.bounds
-
+# ---------------- imagery ----------------
+b = geom.bounds
 sub, ext = crop(stack, tr, b)
 rgb = np.clip(np.stack([sub[2], sub[1], sub[0]], -1) / RGB_MAX, 0, 1)
-cls, _ = crop(pred[0], tr, b)
-a1, _ = crop(np.where(n1[0] == -9999, np.nan, n1[0]), tr, b)
-a2, _ = crop(np.where(n2[0] == -9999, np.nan, n2[0]), tr, b)
-
-st.markdown("#### Satellite analysis")
+cls, _ = crop(pred, tr, b)
+a1, _ = crop(n1, tr, b)
 c = st.columns(3)
-c[0].pyplot(panel(rgb, ext, geom_utm, f"RGB {DATE1}"))
-c[1].pyplot(panel(np.where(cls == 255, np.nan, cls), ext, geom_utm, "CNN: cropland (green) / other (tan)",
+c[0].pyplot(panel(rgb, ext, geom, f"Satellite RGB {DATE1}"))
+c[1].pyplot(panel(np.where(cls == 255, np.nan, cls), ext, geom, "CNN: cropland (green) / other (tan)",
                   cmap=ListedColormap(["#d2b48c", "#2e8b3d"]), vmin=0, vmax=1))
-c[2].pyplot(panel(a2 - a1, ext, geom_utm, "NDVI change", cmap="RdBu", vmin=-0.5, vmax=0.5))
-c = st.columns(3)
-c[0].pyplot(panel(a1, ext, geom_utm, f"NDVI {DATE1}", cmap="RdYlGn", vmin=-0.2, vmax=0.9))
-c[1].pyplot(panel(a2, ext, geom_utm, f"NDVI {DATE2}", cmap="RdYlGn", vmin=-0.2, vmax=0.9))
+c[2].pyplot(panel(a1, ext, geom, f"NDVI {DATE1}", cmap="RdYlGn", vmin=-0.2, vmax=0.9))
 
-# ---- Report download
-report = f"""FARM MONITORING REPORT (research prototype)
-Farm ID: {row.farm_id}   Crop (demo record): {row.crop_type}
-Status: {row.status}
-Flags: {row.flags}
-
-Claimed area: {fmt(row.claimed_area_ha)} ha | Polygon area: {fmt(row.polygon_area_ha)} ha
-CNN-estimated cropland: {fmt(row.cropland_area_ha)} ha ({fmt(row.cropland_pct_of_polygon, 1)}% of polygon)
-Area consistency ratio: {fmt(row.area_consistency_pct, 1)}%
-NDVI {DATE1}: {fmt(row.ndvi_d1, 3)} | NDVI {DATE2}: {fmt(row.ndvi_d2, 3)} | Change: {fmt(row.ndvi_change, 3)}
-Cloud-free coverage: {fmt(row.valid_cov_d1, 0)}% / {fmt(row.valid_cov_d2, 0)}%
-Nearest mapped road: {fmt(row.dist_road_km)} km | Nearest mapped river/stream: {fmt(row.dist_river_km)} km
-
-NOTE: Thresholds are experimental. Flags are prompts for human review, not evidence of fraud,
-crop damage or credit risk. Reference labels come from ESA WorldCover, not field surveys.
-"""
-d1, d2 = st.columns(2)
-d1.download_button("Download report (.txt)", report, file_name=f"{row.farm_id}_report.txt")
-d2.download_button("Download row (.csv)", pd.DataFrame([row.drop("geometry")]).to_csv(index=False),
-                   file_name=f"{row.farm_id}_results.csv")
+report = (f"CLAIM CHECK (research prototype)\nCrop: {crop_type}\nVerdict: {head}\n"
+          f"Claimed: {claimed:.2f} ha | Drawn boundary: {poly_ha:.2f} ha | Estimated cropland: {crop_ha:.2f} ha | "
+          f"Consistency: {ratio:.0f}%\nNDVI {DATE1}: {m1:.2f} | NDVI {DATE2}: {m2:.2f} | Cloud-free: {cov*100:.0f}%\n"
+          + "\n".join(notes) +
+          "\n\nThis is preliminary evidence for human review. It does not establish ownership, fraud, crop failure "
+          "or loan eligibility.\n")
+st.download_button("Download verdict (.txt)", report, file_name="claim_check.txt")

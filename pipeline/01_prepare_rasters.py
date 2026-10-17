@@ -7,7 +7,7 @@ from pyproj import Transformer
 from rasterio.transform import from_origin
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import reproject, Resampling
-from config import *
+from pipeline.config import *
 
 BANDS = ["B02", "B03", "B04", "B08"]
 BAD_SCL = [0, 1, 3, 8, 9, 10, 11]   # nodata, saturated, cloud shadow, clouds, cirrus, snow

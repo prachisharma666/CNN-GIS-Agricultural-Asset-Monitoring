@@ -162,16 +162,6 @@ What Finished system will do:
 - **Results table:** sortable and filterable, with CSV download.
 - **Docker:** one image with Python, GDAL-capable geospatial wheels and TensorFlow (CPU), served by gunicorn, and `docker-compose up` brings everything up with persistent volumes.
 
-### Build order (the next messages)
-
-1. Project skeleton: cleaned `requirements.txt`, `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.gitignore`
-2. Django project and app setup: settings, URLs, models, migrations
-3. Pipeline runner service (subprocess execution, logs, status tracking)
-4. Views and API endpoints (GeoJSON for farms and raster overlays)
-5. HTML templates and Leaflet frontend
-6. Build, run, first-time execution walkthrough, and troubleshooting
-
----
 
 ## 6. Running the current scripts locally (before Docker)
 
@@ -186,8 +176,8 @@ python 03_train_cnn.py
 python 04_classify_map.py
 python 04_2_make_polygons.py cnn
 python 05_ndvi.py
-python 06_make_demo_farms.py        # or place your own data/farms.geojson
-python 07_download_osm.py           # optional
+python 06_make_demo_farms.py       
+python 07_download_osm.py           
 python 08_farm_analysis.py
 ```
 

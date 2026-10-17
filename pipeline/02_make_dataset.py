@@ -3,7 +3,7 @@ label each cell from WorldCover, and split train/val/test by geographic blocks."
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
-from config import *
+from pipeline.config import *
 
 with rasterio.open(stack_path(DATE1)) as src:
     st = src.read()

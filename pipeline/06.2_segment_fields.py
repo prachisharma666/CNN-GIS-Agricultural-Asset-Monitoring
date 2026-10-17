@@ -11,7 +11,7 @@ import geopandas as gpd
 from shapely.geometry import shape
 import matplotlib.pyplot as plt
 from skimage.segmentation import slic, mark_boundaries
-from config import *
+from pipeline.config import *
 
 # ---------------- settings you can tune ----------------
 POLY_SRC = "cnn"          # "cnn" (CNN map) or "wc" (WorldCover) - which cropland mask to split

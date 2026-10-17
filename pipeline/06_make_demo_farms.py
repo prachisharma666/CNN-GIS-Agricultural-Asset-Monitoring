@@ -5,7 +5,7 @@ import geopandas as gpd
 import rasterio
 from rasterio.transform import xy
 from shapely.geometry import box
-from config import *
+from pipeline.config import *
 
 if not PRED_PATH.is_file():
     raise SystemExit(

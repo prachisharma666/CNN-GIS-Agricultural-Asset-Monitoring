@@ -13,3 +13,10 @@ folium
 streamlit-folium
 osmnx>=2.0   # optional, only for 07_download_osm.py
 tensorflow
+ Django>=5.2,<5.3
+tensorflow-cpu==2.18.0
+keras>=3.6,<3.9
+pillow
+numpy>=1.26,<2.1
+psycopg[binary]>=3.2
+gunicorn

@@ -2,7 +2,7 @@
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
-from config import *
+from pipeline.config import *
 
 NODATA = -9999.0
 

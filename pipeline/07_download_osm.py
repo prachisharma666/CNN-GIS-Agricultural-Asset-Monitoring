@@ -1,6 +1,6 @@
 """OPTIONAL: download roads and rivers/streams from OpenStreetMap (needs osmnx >= 2.0)."""
 import osmnx as ox
-from config import *
+from pipeline.config import *
 
 west, south, east, north = BBOX
 bbox = (west - 0.02, south - 0.02, east + 0.02, north + 0.02)   # (left, bottom, right, top)

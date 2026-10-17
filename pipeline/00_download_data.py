@@ -12,7 +12,7 @@ from rasterio.warp import transform_bounds
 import planetary_computer
 import pystac_client
 from shapely.geometry import box, shape
-from config import *
+from pipeline.config import *
 
 WINDOW1 = "2026-01-01/2026-02-20"      # date 1: crops near peak growth
 WINDOW2 = "2026-03-25/2026-04-30"      # date 2: after harvest / drier

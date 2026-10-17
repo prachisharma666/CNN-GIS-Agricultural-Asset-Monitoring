@@ -9,6 +9,10 @@ env/
 .pytest_cache/
 .mypy_cache/
 *.log
+*.pyc
+db.sqlite3
+.env
+.DS_Store
 
 # ---------- Secrets / local config ----------
 .env
