@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Log in — Cropland classifier</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'tasks/style.css' %}">
+</head>
+<body class="app">
+  <h1>🌾 Log in to the cropland classifier</h1>
+  <form method="post" id="add-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Log in</button>
+  </form>
+</body>
+</html>

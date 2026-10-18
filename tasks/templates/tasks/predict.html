@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cropland classifier</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'tasks/style.css' %}">
+</head>
+<body class="app">
+  <header class="app-header">
+    <h1>🌾 Cropland classifier — {{ user.username }}</h1>
+    <div>
+      <button id="theme-btn" type="button">🌙 Dark mode</button>
+      <form method="post" action="{% url 'logout' %}" style="display:contents">
+        {% csrf_token %}
+        <button type="submit" class="btn">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <form method="post" enctype="multipart/form-data" id="add-form">
+    {% csrf_token %}
+    <input type="file" name="chip" id="chip-input" accept="image/*" required>
+    <button type="submit" class="btn">Classify</button>
+  </form>
+
+  <img id="preview" alt="Selected image preview" hidden>
+
+  {% if error %}
+    <p class="error-msg">{{ error }}</p>
+  {% endif %}
+
+  {% if result %}
+    <section class="result" data-label="{{ result.label }}">
+      <h2>{{ result.label }}</h2>
+      <div class="bar"><div class="bar-fill" style="width: {{ result.percent|stringformat:'.1f' }}%"></div></div>
+      <p>Cropland probability: {{ result.percent|stringformat:".1f" }}%</p>
+    </section>
+  {% else %}
+    {% if not error %}<p id="empty-state">No image classified yet — choose one above.</p>{% endif %}
+  {% endif %}
+
+  <script>
+    const themeBtn = document.getElementById("theme-btn");
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeBtn.textContent = theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+      localStorage.setItem("cropland.theme", theme);
+    }
+    themeBtn.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      applyTheme(next);
+    });
+    applyTheme(localStorage.getItem("cropland.theme") || "light");
+
+    const chipInput = document.getElementById("chip-input");
+    const preview = document.getElementById("preview");
+    chipInput.addEventListener("change", () => {
+      const file = chipInput.files[0];
+      preview.hidden = !file;
+      if (file) preview.src = URL.createObjectURL(file);
+    });
+  </script>
+</body>
+</html>

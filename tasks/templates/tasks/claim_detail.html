@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Claim {{ claim.farm_id|default:claim.id }}</title>
+  {% load static %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{% static 'tasks/style.css' %}">
+</head>
+<body class="app wide">
+  <header class="app-header">
+    <h1>🌾 Claim {{ claim.farm_id|default:claim.id }} — {{ user.username }}</h1>
+    <div>
+      <a href="{% url 'claims' %}" class="nav-link">All checks</a>
+      <button id="theme-btn" type="button">🌙 Dark mode</button>
+      <form method="post" action="{% url 'logout' %}" style="display:contents">
+        {% csrf_token %}
+        <button type="submit" class="btn">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <section class="verdict" data-priority="{{ claim.priority }}">
+    {% if claim.priority == "high" %}High priority: this claim needs verification
+    {% elif claim.priority == "medium" %}Flagged for review
+    {% else %}Consistent with the satellite evidence{% endif %}
+  </section>
+
+  <p class="muted">
+    {{ claim.farmer_name|default:"Farmer not recorded" }} &middot; {{ claim.crop_type|default:"crop not stated" }} (as attested) &middot;
+    checked {{ claim.created_at|date:"d M Y, H:i" }} &middot; imagery {{ r.date1 }} and {{ r.date2 }}
+  </p>
+
+  <div id="map-detail" style="height:300px"></div>
+
+  <div class="card">
+    <h2>Claim vs satellite evidence</h2>
+    <table class="data">
+      <tr><td>Claimed area</td><td><strong>{{ claimed.acres|floatformat:2 }} acres</strong> ({{ claimed.ha|floatformat:2 }} ha)</td></tr>
+      <tr><td>CNN-detected cropland</td><td><strong>{{ detected.acres|floatformat:2 }} acres</strong> ({{ detected.ha|floatformat:2 }} ha)</td></tr>
+      <tr><td>Boundary area</td><td>{{ boundary.acres|floatformat:2 }} acres ({{ boundary.ha|floatformat:2 }} ha)</td></tr>
+      <tr>
+        <td>Area consistency</td>
+        <td>
+          <strong>{{ r.area_consistency_pct|floatformat:1 }}%</strong>
+          <span class="muted small">(consistent between {{ thresholds.area_low }}% and {{ thresholds.area_high }}%)</span>
+        </td>
+      </tr>
+      <tr><td>NDVI {{ r.date1 }}</td><td>{% if r.ndvi_d1 is not None %}{{ r.ndvi_d1|floatformat:3 }}{% else %}n/a{% endif %}</td></tr>
+      <tr><td>NDVI {{ r.date2 }}</td><td>{% if r.ndvi_d2 is not None %}{{ r.ndvi_d2|floatformat:3 }}{% else %}n/a{% endif %}</td></tr>
+      <tr><td>NDVI change</td><td>{% if r.ndvi_change is not None %}{{ r.ndvi_change|floatformat:3 }}{% else %}n/a{% endif %}</td></tr>
+      <tr><td>Cloud-free pixels</td><td>{{ r.valid_cov_d1|floatformat:0 }}% / {{ r.valid_cov_d2|floatformat:0 }}%</td></tr>
+      <tr>
+        <td>Nearest road / river</td>
+        <td>
+          {% if r.dist_road_km is not None %}{{ r.dist_road_km|floatformat:2 }} km{% else %}n/a{% endif %} /
+          {% if r.dist_river_km is not None %}{{ r.dist_river_km|floatformat:2 }} km{% else %}n/a{% endif %}
+        </td>
+      </tr>
+    </table>
+    {% if r.area_consistency_pct is not None %}
+    <div class="bar" title="Consistency, scale 0 to 200%">
+      <div class="bar-fill" data-priority="{{ claim.priority }}" style="width: {% widthratio r.area_consistency_pct 200 100 %}%"></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Monitoring flags</h2>
+    {% for f in flags %}
+      <div class="flag" data-code="{{ f.code }}"><strong>{{ f.text }}</strong><br><span class="muted small">{{ f.help }}</span></div>
+    {% empty %}
+      <p>No flags. The claimed area and vegetation behaviour are consistent with the satellite evidence.</p>
+    {% endfor %}
+    {% for w in r.warnings %}<p class="muted small">Note: {{ w }}</p>{% endfor %}
+  </div>
+
+  <p class="muted small">
+    Crop type is recorded as the farmer stated it; the CNN cannot confirm it. This prototype supports preliminary review only. It does not
+    establish land ownership, crop failure, fraud or loan eligibility, and its thresholds are not validated banking standards.
+  </p>
+
+  <form method="post" action="{% url 'delete_claim' claim.id %}" onsubmit="return confirm('Delete this check?')">
+    {% csrf_token %}
+    <button type="submit" class="btn small danger">Delete this check</button>
+  </form>
+
+  {{ geometry|json_script:"claim-geom" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const themeBtn = document.getElementById("theme-btn");
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeBtn.textContent = theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+      localStorage.setItem("cropland.theme", theme);
+    }
+    themeBtn.addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+    applyTheme(localStorage.getItem("cropland.theme") || "light");
+
+    const geometry = JSON.parse(document.getElementById("claim-geom").textContent);
+    const map = L.map("map-detail");
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19, attribution: "Tiles &copy; Esri",
+    }).addTo(map);
+    const outline = L.geoJSON({ type: "Feature", geometry: geometry, properties: {} }, { style: { color: "#ffeb3b", weight: 3, fillOpacity: 0.15 } }).addTo(map);
+    map.fitBounds(outline.getBounds(), { padding: [40, 40], maxZoom: 18 });
+  </script>
+</body>
+</html>
