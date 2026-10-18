@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,12 +32,13 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "tasks",
 ]
 
 MIDDLEWARE = [
@@ -54,7 +56,7 @@ ROOT_URLCONF = 'taskflow.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        "DIRS": [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -115,7 +117,31 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+LOGIN_REDIRECT_URL = "claims"
+LOGOUT_REDIRECT_URL = "login"
+MODEL_PATH = BASE_DIR / "models" / "mobilenetv2_cropland.keras"
+ANALYSIS_CRS = "EPSG:32643"
+ANALYSIS_PIXEL_SIZE = 10
+ANALYSIS_DATE1 = "2026-01-03"
+ANALYSIS_DATE2 = "2026-04-13"
+ANALYSIS_PRED_PATH = BASE_DIR / "data" / "processed" / "crop_pred.tif"
+ANALYSIS_ROADS_FILE = BASE_DIR / "data" / "raw" / "osm" / "roads.geojson"
+ANALYSIS_RIVERS_FILE = BASE_DIR / "data" / "raw" / "osm" / "rivers.geojson"
 
+if os.environ.get("POSTGRES_DB"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["POSTGRES_DB"],
+            "USER": os.environ.get("POSTGRES_USER", "taskflow"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "taskflow"),
+            "HOST": os.environ.get("POSTGRES_HOST", "db"),
+            "PORT": "5432",
+        }
+    }
+else:
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration

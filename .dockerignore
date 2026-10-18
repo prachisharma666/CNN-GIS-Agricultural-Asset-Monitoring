@@ -1,0 +1,11 @@
+venv/
+cache/
+__pycache__/
+.git/
+.env
+db.sqlite3
+data/
+outputs/
+pipeline/data/
+pipeline/outputs/
+pipeline/models/

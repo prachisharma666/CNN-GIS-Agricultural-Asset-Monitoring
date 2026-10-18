@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verify a claim</title>
+  {% load static %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{% static 'tasks/style.css' %}">
+</head>
+<body class="app wide">
+  <header class="app-header">
+    <h1>🌾 Verify a farmer's claim — {{ user.username }}</h1>
+    <div>
+      <a href="{% url 'predict' %}" class="nav-link">Chip classifier</a>
+      <button id="theme-btn" type="button">🌙 Dark mode</button>
+      <form method="post" action="{% url 'logout' %}" style="display:contents">
+        {% csrf_token %}
+        <button type="submit" class="btn">Log out</button>
+      </form>
+    </div>
+  </header>
+
+  <p class="muted">Draw the field boundary on the satellite map, enter what the farmer claims, and the system compares it with the CNN cropland map and NDVI.</p>
+
+  {% if error %}<p class="error-msg">{{ error }}</p>{% endif %}
+
+  <form method="post" id="claim-form" class="card">
+    {% csrf_token %}
+    <h2>1. Draw the boundary</h2>
+    <div id="map" style="height:420px"></div>
+    <div class="map-tools">
+      <button type="button" class="btn small" id="btn-draw">Start drawing</button>
+      <button type="button" class="btn small ghost" id="btn-finish" disabled>Finish</button>
+      <button type="button" class="btn small ghost" id="btn-undo" disabled>Undo point</button>
+      <button type="button" class="btn small ghost" id="btn-clear" disabled>Clear</button>
+      <span id="drawn-area" class="muted">Drawn area: not drawn yet</span>
+    </div>
+    <input type="hidden" name="geometry" id="geometry">
+
+    <h2>2. Enter the attested claim</h2>
+    <div class="grid2">
+      <label class="field">Claimed cultivated area
+        <span class="inline">
+          <input type="number" name="claimed_value" min="0.01" step="0.01" required value="{{ form.claimed_value }}" placeholder="e.g. 2.5">
+          <select name="claimed_unit">
+            {% for code, label in units %}
+              <option value="{{ code }}" {% if form.claimed_unit == code %}selected{% elif not form.claimed_unit and code == "acre" %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </span>
+      </label>
+      <label class="field">Crop (as attested)
+        <select name="crop_type">
+          <option value="">Not stated</option>
+          {% for c in crops %}<option value="{{ c }}" {% if form.crop_type == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="field">Farmer name <input type="text" name="farmer_name" maxlength="120" value="{{ form.farmer_name }}"></label>
+      <label class="field">Farm / loan reference <input type="text" name="farm_id" maxlength="40" value="{{ form.farm_id }}"></label>
+    </div>
+    <p class="muted small">The crop is recorded as stated. The CNN only separates cropland from non-cropland and cannot confirm which crop is grown.</p>
+    <button type="submit" class="btn" id="submit-btn" disabled>Check claim</button>
+    <span id="form-hint" class="error-msg" hidden></span>
+  </form>
+
+  <h2>Previous checks</h2>
+  {% if claims %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Date</th><th>Farm</th><th>Crop</th><th>Claimed (acres)</th><th>Detected (acres)</th><th>Consistency</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for c in claims %}
+      <tr>
+        <td>{{ c.created_at|date:"d M Y" }}</td>
+        <td>{{ c.farm_id|default:"-" }}</td>
+        <td>{{ c.crop_type|default:"-" }}</td>
+        <td>{{ c.claimed_acres|floatformat:2 }}</td>
+        <td>{{ c.detected_acres|floatformat:2|default:"-" }}</td>
+        <td>{{ c.result.area_consistency_pct|floatformat:0|default:"-" }}%</td>
+        <td>
+          <span class="badge" data-priority="{{ c.priority }}">
+            {% if c.priority == "high" %}High priority{% elif c.priority == "medium" %}Review{% else %}Consistent{% endif %}
+          </span>
+        </td>
+        <td><a href="{% url 'claim_detail' c.id %}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p id="empty-state">No claims checked yet — draw a boundary above.</p>
+  {% endif %}
+
+  {{ bounds|json_script:"study-bounds" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const themeBtn = document.getElementById("theme-btn");
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeBtn.textContent = theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+      localStorage.setItem("cropland.theme", theme);
+    }
+    themeBtn.addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+    applyTheme(localStorage.getItem("cropland.theme") || "light");
+
+    const bounds = JSON.parse(document.getElementById("study-bounds").textContent);
+    const map = L.map("map", { doubleClickZoom: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19, attribution: "Tiles &copy; Esri",
+    }).addTo(map);
+    if (bounds) {
+      L.rectangle(bounds, { color: "#ffffff", weight: 2, dashArray: "6 4", fill: false }).addTo(map);
+      map.fitBounds(bounds);
+    } else {
+      map.setView([20.15, 74.0], 12);
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const markers = L.layerGroup().addTo(map);
+    let pts = [], drawing = false, preview = null, polygon = null;
+
+    function areaHa(ll) {
+      const d2r = Math.PI / 180;
+      let area = 0;
+      for (let i = 0; i < ll.length; i++) {
+        const a = ll[i], b = ll[(i + 1) % ll.length];
+        area += (b.lng - a.lng) * d2r * (2 + Math.sin(a.lat * d2r) + Math.sin(b.lat * d2r));
+      }
+      return Math.abs((area * 6378137 * 6378137) / 2) / 10000;
+    }
+    function readout() {
+      if (pts.length < 3) return;
+      const ha = areaHa(pts);
+      $("drawn-area").textContent = `Drawn area: about ${(ha / 0.40468564224).toFixed(2)} acres (${ha.toFixed(2)} ha)`;
+    }
+    function buttons() {
+      $("btn-finish").disabled = !(drawing && pts.length >= 3);
+      $("btn-undo").disabled = !(drawing && pts.length > 0);
+      $("btn-clear").disabled = !(drawing || polygon);
+      $("btn-draw").disabled = drawing;
+      $("submit-btn").disabled = !polygon;
+    }
+    function redraw() {
+      markers.clearLayers();
+      pts.forEach((p, i) => {
+        L.circleMarker(p, { radius: i === 0 ? 7 : 4, color: "#ffeb3b", fillColor: "#ffeb3b", fillOpacity: 1 }).addTo(markers);
+      });
+      if (preview) map.removeLayer(preview);
+      preview = pts.length > 1 ? L.polyline(pts, { color: "#ffeb3b", weight: 3 }).addTo(map) : null;
+      readout();
+      buttons();
+    }
+    function clearAll() {
+      drawing = false; pts = [];
+      markers.clearLayers();
+      [preview, polygon].forEach((l) => { if (l) map.removeLayer(l); });
+      preview = polygon = null;
+      $("geometry").value = "";
+      $("drawn-area").textContent = "Drawn area: not drawn yet";
+      map.getContainer().style.cursor = "";
+      buttons();
+    }
+    function finish() {
+      if (pts.length < 3) return;
+      drawing = false;
+      markers.clearLayers();
+      if (preview) { map.removeLayer(preview); preview = null; }
+      polygon = L.polygon(pts, { color: "#ffeb3b", weight: 3, fillOpacity: 0.15 }).addTo(map);
+      const ring = pts.map((p) => [p.lng, p.lat]);
+      ring.push(ring[0]);
+      $("geometry").value = JSON.stringify({ type: "Polygon", coordinates: [ring] });
+      map.getContainer().style.cursor = "";
+      readout();
+      buttons();
+    }
+    map.on("click", (e) => {
+      if (!drawing) return;
+      if (pts.length >= 3 && map.latLngToContainerPoint(e.latlng).distanceTo(map.latLngToContainerPoint(pts[0])) < 12) { finish(); return; }
+      pts.push(e.latlng);
+      redraw();
+    });
+    $("btn-draw").addEventListener("click", () => { clearAll(); drawing = true; map.getContainer().style.cursor = "crosshair"; buttons(); });
+    $("btn-finish").addEventListener("click", finish);
+    $("btn-undo").addEventListener("click", () => { pts.pop(); redraw(); });
+    $("btn-clear").addEventListener("click", clearAll);
+    $("claim-form").addEventListener("submit", (e) => {
+      if (!$("geometry").value) {
+        e.preventDefault();
+        $("form-hint").hidden = false;
+        $("form-hint").textContent = "Draw and finish a boundary on the map first.";
+      }
+    });
+    buttons();
+  </script>
+</body>
+</html>
