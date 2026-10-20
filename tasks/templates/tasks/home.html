@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Home</title></head>
+<body>
+  <h1>Hello, {{ user.username }}</h1>
+  <p>Django is running. The database in use is: <strong>{{ db_vendor }}</strong>.</p>
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit">Log out</button>
+  </form>
+</body>
+</html>

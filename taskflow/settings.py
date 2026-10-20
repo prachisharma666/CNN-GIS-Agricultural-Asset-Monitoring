@@ -1,3 +1,4 @@
+
 """
 Django settings for taskflow project.
 
@@ -12,22 +13,27 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 import os
-import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(BASE_DIR / ".env")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
-    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a non-empty value.")
+    raise ImproperlyConfigured(
+        "Set DJANGO_SECRET_KEY in the environment or in the local .env file."
+    )
+DEBUG = True
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = []
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 
@@ -70,39 +76,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'taskflow.wsgi.application'
 
-# Database configuration
-# Supports Railway's DATABASE_URL, individual PostgreSQL vars, or falls back to SQLite
-if os.environ.get("DATABASE_URL"):
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.environ.get("DATABASE_URL"),
-            conn_max_age=600,
-            ssl_require=True
-        )
+
+# Database
+# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-elif os.environ.get("POSTGRES_DB"):
-    postgres_password = os.environ.get("POSTGRES_PASSWORD")
-    if not postgres_password:
-        raise ImproperlyConfigured(
-            "POSTGRES_PASSWORD must be set when using PostgreSQL."
-        )
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ["POSTGRES_DB"],
-            "USER": os.environ.get("POSTGRES_USER", "taskflow"),
-            "PASSWORD": postgres_password,
-            "HOST": os.environ.get("POSTGRES_HOST", "db"),
-            "PORT": "5432",
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
@@ -122,6 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
@@ -133,25 +118,13 @@ USE_I18N = True
 
 USE_TZ = True
 
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-LOGIN_REDIRECT_URL = "claims"
+LOGIN_REDIRECT_URL = "task_list"
 LOGOUT_REDIRECT_URL = "login"
-
-# Custom App Configuration Paths
-MODEL_PATH = BASE_DIR / "models" / "mobilenetv2_cropland.keras"
-ANALYSIS_CRS = "EPSG:32643"
-ANALYSIS_PIXEL_SIZE = 10
-ANALYSIS_DATE1 = "2026-01-03"
-ANALYSIS_DATE2 = "2026-04-13"
-ANALYSIS_PRED_PATH = BASE_DIR / "data" / "processed" / "crop_pred.tif"
-ANALYSIS_ROADS_FILE = BASE_DIR / "data" / "raw" / "osm" / "roads.geojson"
-ANALYSIS_RIVERS_FILE = BASE_DIR / "data" / "raw" / "osm" / "rivers.geojson"
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
