@@ -162,6 +162,10 @@ What Finished system will do:
 - **Results table:** sortable and filterable, with CSV download.
 - **Docker:** one image with Python, GDAL-capable geospatial wheels and TensorFlow (CPU), served by gunicorn, and `docker-compose up` brings everything up with persistent volumes.
 
+Before starting Docker Compose, copy `.env.example` to `.env` and set a unique,
+strong `POSTGRES_PASSWORD` and a separately generated `DJANGO_SECRET_KEY`.
+Neither secret has a code default; the application and Compose configuration
+fail explicitly when required values are missing.
 
 ## 6. Running the current scripts locally (before Docker)
 

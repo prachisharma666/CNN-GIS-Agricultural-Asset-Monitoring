@@ -8,3 +8,5 @@ gunicorn
 rasterio
 shapely
 pyproj
+dj-database-url
+python-dotenv
