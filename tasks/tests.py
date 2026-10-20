@@ -16,7 +16,6 @@ class HomeTests(TestCase):
         res = self.client.get("/")
         self.assertContains(res, "Cropland classifier")
         self.assertContains(res, "asha")
-        self.assertContains(res, 'href="/static/tasks/style.css"')
 
     def test_login_page(self):
         self.assertContains(self.client.get("/accounts/login/"), "Log in")

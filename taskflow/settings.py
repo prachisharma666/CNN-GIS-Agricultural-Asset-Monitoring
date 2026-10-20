@@ -1,4 +1,3 @@
-
 """
 Django settings for taskflow project.
 
@@ -12,24 +11,18 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
-import os
-from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    raise ImproperlyConfigured(
-        "Set DJANGO_SECRET_KEY in the environment or in the local .env file."
-    )
+SECRET_KEY = 'django-insecure-h^&uy_ua$le&bo#z@)j2dmsnjb%uo@8eoo29o)b5xuj8**^ad6'
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
@@ -123,8 +116,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
-LOGIN_REDIRECT_URL = "task_list"
+LOGIN_REDIRECT_URL = "claims"
 LOGOUT_REDIRECT_URL = "login"
+
+# Farm-analysis settings must match the pipeline configuration.
+ANALYSIS_CRS = "EPSG:32643"
+ANALYSIS_PIXEL_SIZE = 10
+ANALYSIS_DATE1 = "2026-01-03"
+ANALYSIS_DATE2 = "2026-04-13"
+ANALYSIS_PRED_PATH = BASE_DIR / "data" / "processed" / "crop_pred.tif"
+ANALYSIS_ROADS_FILE = BASE_DIR / "data" / "raw" / "osm" / "roads.geojson"
+ANALYSIS_RIVERS_FILE = BASE_DIR / "data" / "raw" / "osm" / "rivers.geojson"
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
