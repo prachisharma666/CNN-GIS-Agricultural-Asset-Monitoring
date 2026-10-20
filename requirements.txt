@@ -1,4 +1,4 @@
-Django>=5.2,<5.3
+Django>=6.1,<6.2
 tensorflow-cpu==2.22.0rc0
 keras-nightly==3.16.0.dev2026101704
 pillow
