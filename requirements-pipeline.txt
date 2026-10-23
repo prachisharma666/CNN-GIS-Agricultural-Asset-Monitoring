@@ -8,14 +8,13 @@ pyproj
 scikit-learn
 torch
 torchvision
-streamlit
 folium
 streamlit-folium
 osmnx>=2.0   # optional, only for 07_download_osm.py
 tensorflow
 Django>=5.2,<5.3
-tensorflow-cpu==2.22.0rc0
-keras-nightly==3.16.0.dev2026101704
+tensorflow-cpu==2.21.0
+keras==3.15.1
 pillow
 numpy
 psycopg[binary]>=3.2

@@ -9,6 +9,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN python manage.py collectstatic --noinput
+RUN DJANGO_SECRET_KEY=build-only-dummy-key python manage.py collectstatic --noinput
 
-CMD sh -c "python manage.py migrate --noinput && gunicorn yourproject.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers 1 --timeout 120"
+CMD sh -c "python manage.py migrate --noinput && gunicorn taskflow.wsgi:application --bind 0.0.0.0:${PORT:-10000} --workers 1 --timeout 120"
