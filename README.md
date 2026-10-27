@@ -42,6 +42,30 @@ data/processed/crop_pred.tif, crop_prob.tif
 
 ## 2. Execution order
 
+On Windows, run the pipeline in Docker to avoid Windows TensorFlow DLL restrictions. From the project root, build the image once, then run each step in order:
+
+```powershell
+docker compose build web
+docker compose run --rm --no-deps web python pipeline/00_download_data.py
+docker compose run --rm --no-deps web python pipeline/01_prepare_rasters.py
+docker compose run --rm --no-deps web python pipeline/02_make_dataset.py
+docker compose run --rm --no-deps web python pipeline/03_train_cnn.py
+docker compose run --rm --no-deps web python pipeline/04_classify_map.py
+```
+
+If you want per-polygon NDVI, create the polygons before step 5. Then run step 5 and any optional analysis steps:
+
+```powershell
+docker compose run --rm --no-deps web python pipeline/04.2_make_polygons.py cnn
+docker compose run --rm --no-deps web python pipeline/05_ndvi.py
+docker compose run --rm --no-deps web python pipeline/06.2_segment_fields.py
+docker compose run --rm --no-deps web python pipeline/06_make_demo_farms.py
+docker compose run --rm --no-deps web python pipeline/07_download_osm.py
+docker compose run --rm --no-deps web python pipeline/08_farm_analysis.py
+```
+
+If you do not need per-polygon NDVI, skip the polygon command and run `docker compose run --rm --no-deps web python pipeline/05_ndvi.py` directly after step 4. The pipeline folder is mounted into the container so each command can reuse files from earlier steps, persist outputs on the host, and retain the dates written by step 0.
+
 | Order | Script | Needs | Produces |
 |---|---|---|---|
 | 0 | `00_download_data.py` | internet | raw Sentinel-2 bands, WorldCover, updates `DATE1`/`DATE2` in `config.py` |

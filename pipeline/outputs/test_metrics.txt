@@ -1,0 +1,8 @@
+              precision    recall  f1-score   support
+
+non-cropland      0.541     0.708     0.613       168
+    cropland      0.982     0.963     0.973      2761
+
+    accuracy                          0.949      2929
+   macro avg      0.761     0.836     0.793      2929
+weighted avg      0.957     0.949     0.952      2929

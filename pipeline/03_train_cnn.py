@@ -6,7 +6,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, f1_score
-from pipeline.config import *
+from config import *
 
 MODEL_TF = MODELS / "mobilenetv2_cropland.keras"
 keras.utils.set_random_seed(42)

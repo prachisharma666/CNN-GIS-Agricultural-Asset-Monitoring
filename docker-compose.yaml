@@ -26,6 +26,7 @@ services:
       - ./models:/app/models
       - ./data:/app/data
       - ./outputs:/app/outputs
+      - ./pipeline:/app/pipeline
 
 volumes:
   pgdata:

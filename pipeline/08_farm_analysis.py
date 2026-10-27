@@ -4,7 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import rasterio
 from rasterio import features
-from pipeline.config import *
+from config import *
 
 # ---- Experimental prototype thresholds (NOT validated banking standards)
 AREA_LOW, AREA_HIGH = 70, 130     # area consistency ratio (%) outside this range -> review

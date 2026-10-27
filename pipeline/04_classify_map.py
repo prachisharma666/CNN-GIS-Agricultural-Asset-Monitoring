@@ -4,7 +4,7 @@ import numpy as np
 import rasterio
 from tensorflow import keras
 import matplotlib.pyplot as plt
-from pipeline.config import *
+from config import *
 
 MODEL_TF = MODELS / "mobilenetv2_cropland.keras"
 if not MODEL_TF.is_file():
